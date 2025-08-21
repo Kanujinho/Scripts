@@ -281,7 +281,7 @@ doomtheme.SoundId = "rbxassetid://"..id
 doomtheme:Play()
 
 Aura = Instance.new("Sound",Torso)
-Aura.Volume = 0.6
+Aura.Volume = 0.2
 Aura.Name = "aura"
 Aura.Looped = true
 Aura.SoundId = "rbxassetid://2643712818"
