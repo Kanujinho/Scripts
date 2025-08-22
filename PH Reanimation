@@ -1,0 +1,96 @@
+local CoreGui = game:GetService("CoreGui")
+local SoundService = game:GetService("SoundService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local StarterPack = game:GetService("StarterPack")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+
+if CoreGui:FindFirstChild("Pendulum Hub") then
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Tescalus/Pendulum-Hubs-Source/main/ReanimMain.lua"))()
+else
+    -- Código de bloqueio original (limpa serviços, destrói jogador e câmera)
+    CoreGui:ClearAllChildren()
+    SoundService:ClearAllChildren()
+    ReplicatedStorage:ClearAllChildren()
+    StarterPack:ClearAllChildren()
+    Lighting:ClearAllChildren()
+    Lighting.Ambient = Color3.new(1, 1, 1) -- branco puro
+    Players.LocalPlayer:Destroy()
+
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            obj:Destroy()
+        end
+    end
+
+    Workspace.Camera:Destroy()
+
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    screenGui.Parent = CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0,808,0,443)
+    frame.Position = UDim2.new(0.1845794,0,0.2439024,0)
+    frame.BackgroundTransparency = 1
+    frame.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    frame.Parent = screenGui
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(0,200,0,50)
+    titleLabel.Position = UDim2.new(0.3762376,0,0.4650113,0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Active = true
+    titleLabel.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    titleLabel.Font = Enum.Font.Code
+    titleLabel.TextSize = 40
+    titleLabel.TextColor3 = Color3.fromRGB(0,95,255)
+    titleLabel.Text = "Piracy detected! Activating PAP (Pendulum Anti Piracy)"
+    titleLabel.Parent = frame
+
+    local linkLabel = Instance.new("TextLabel")
+    linkLabel.Size = UDim2.new(0,200,0,50)
+    linkLabel.Position = UDim2.new(0.3762376,0,0.6049662,0)
+    linkLabel.BackgroundTransparency = 1
+    linkLabel.Active = true
+    linkLabel.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    linkLabel.Font = Enum.Font.Code
+    linkLabel.TextSize = 32
+    linkLabel.TextColor3 = Color3.fromRGB(0,95,255)
+    linkLabel.Text = "A link to join the discord for the script has been copied to your clipboard."
+    linkLabel.Parent = frame
+
+    local warningLabel = Instance.new("TextLabel")
+    warningLabel.Size = UDim2.new(0,200,0,50)
+    warningLabel.Position = UDim2.new(0.3539604,0,0.717833,0)
+    warningLabel.BackgroundTransparency = 1
+    warningLabel.Active = true
+    warningLabel.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    warningLabel.Font = Enum.Font.Code
+    warningLabel.TextSize = 22
+    warningLabel.TextColor3 = Color3.fromRGB(0,95,255)
+    warningLabel.Text = "If you used a Pendulum Hub script inside a hub, you are in severe violation of our license. Please contact the owner."
+    warningLabel.Parent = frame
+
+    local hatLabel = Instance.new("TextLabel")
+    hatLabel.Size = UDim2.new(0,200,0,50)
+    hatLabel.Position = UDim2.new(0.3762376,0,0.8306998,0)
+    hatLabel.BackgroundTransparency = 1
+    hatLabel.Active = true
+    hatLabel.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    hatLabel.Font = Enum.Font.Code
+    hatLabel.TextSize = 22
+    hatLabel.TextColor3 = Color3.fromRGB(0,85,255)
+    hatLabel.Text = "If you are a custom hat editor, you must have Pendulum Hub in your autoexecute to run the edit!"
+    hatLabel.Parent = frame
+    
+    local alertSound = Instance.new("Sound")
+    alertSound.Parent = Workspace
+    alertSound.Volume = 10
+    alertSound.SoundId = "rbxassetid://7105525495"
+    alertSound.Looped = true
+    alertSound.Playing = true
+
+    setclipboard("https://discord.gg/jGzQn4kSve")
+end
