@@ -1,0 +1,274 @@
+local plrs = game:GetService("Players")
+local uis = game:GetService("UserInputService")
+local rus = game:GetService("RunService")
+local lp = plrs.LocalPlayer
+local char = lp.Character or lp.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local hrp = char:WaitForChild("HumanoidRootPart")
+local e = Enum
+local i = Instance.new
+local v3 = Vector3.new
+local cf = CFrame.new
+local cfl = CFrame.lookAt
+local angles = CFrame.fromEulerAngles
+local isFlying = false
+local isFlyFlying = false
+local lastWPress = 0
+local moveDir = Vector3.new()
+local currVel = Vector3.new()
+local targVel = Vector3.new()
+local linVel = nil
+local alignOri = nil
+local bGyro = nil
+
+local fly_K = e.KeyCode.T
+local up_K = e.KeyCode.E
+local down_K = e.KeyCode.Q
+local hover_S = 25
+local fly_S = 160
+local tilt_A = -90
+local hover_T_A = 20
+local ACCEL = 2
+local DECEL = 5
+local DTAP = 0.15
+
+local speedAnim = Instance.new("Animation")
+local hoverAnim = Instance.new("Animation")
+speedAnim.AnimationId = "rbxassetid://114722309053999"
+hoverAnim.AnimationId = "rbxassetid://79363126356151"
+
+local speedTrack, hoverTrack
+
+local function loadAnimations()
+	local animator = hum:FindFirstChildOfClass("Animator")
+	if not animator then
+		animator = Instance.new("Animator")
+		animator.Parent = hum
+	end
+	speedTrack = animator:LoadAnimation(speedAnim)
+	speedTrack.Priority = Enum.AnimationPriority.Action
+	speedTrack.Looped = true
+	hoverTrack = animator:LoadAnimation(hoverAnim)
+	hoverTrack.Priority = Enum.AnimationPriority.Action
+end
+
+loadAnimations()
+
+local setupFlight = function()
+	if hrp:FindFirstChild("FlightAttachment") then
+		hrp.FlightAttachment:Destroy()
+	end
+	if hrp:FindFirstChild("FlightOrientAttachment") then
+		hrp.FlightOrientAttachment:Destroy()
+	end
+	local att = i("Attachment")
+	local vel = i("LinearVelocity")
+	local oriAtt = i("Attachment")
+	local worldAtt = i("Attachment")
+	local alignOri = i("AlignOrientation")
+	att.Name = "FlightAttachment"
+	att.Parent = hrp
+	vel.Name = "FlightVelocity"
+	vel.MaxForce = math.huge
+	vel.VelocityConstraintMode = e.VelocityConstraintMode.Vector
+	vel.RelativeTo = e.ActuatorRelativeTo.World
+	vel.Attachment0 = att
+	vel.VectorVelocity = v3()
+	vel.Enabled = false
+	vel.Parent = att
+	oriAtt.Name = "FlightOrientAttachment"
+	oriAtt.Parent = hrp
+	worldAtt.Name = "WorldOrientAttachment"
+	worldAtt.Parent = workspace.Terrain
+	alignOri.Name = "FlightOrientation"
+	alignOri.Responsiveness = 10
+	alignOri.RigidityEnabled = false
+	alignOri.Attachment0 = oriAtt
+	alignOri.Attachment1 = worldAtt
+	alignOri.Enabled = false
+	alignOri.Parent = oriAtt
+	return vel, alignOri
+end
+
+local createGyro = function()
+	if hrp:FindFirstChild("FlightGyro") then
+		hrp.FlightGyro:Destroy()
+	end
+	bGyro = i("BodyGyro")
+	bGyro.Name = "FlightGyro"
+	bGyro.MaxTorque = v3(1, 1, 1) * 400000
+	bGyro.P = 3000
+	bGyro.D = 500
+	bGyro.CFrame = hrp.CFrame
+	bGyro.Parent = hrp
+end
+
+local destroyGyro = function()
+	if bGyro then
+		bGyro:Destroy()
+		bGyro = nil
+	end
+end
+
+local getCamLook = function()
+	local cam = workspace.CurrentCamera
+	local look = cam.CFrame.LookVector
+	return v3(look.X, 0, look.Z).Unit
+end
+
+local getCamRight = function()
+	local cam = workspace.CurrentCamera
+	local right = cam.CFrame.RightVector
+	return v3(right.X, 0, right.Z).Unit
+end
+
+local getMoveDir = function()
+	local dir = v3()
+	if uis:IsKeyDown(e.KeyCode.W) then
+		dir = dir + getCamLook()
+	end
+	if uis:IsKeyDown(e.KeyCode.S) then
+		dir = dir - getCamLook()
+	end
+	if uis:IsKeyDown(e.KeyCode.A) then
+		dir = dir - getCamRight()
+	end
+	if uis:IsKeyDown(e.KeyCode.D) then
+		dir = dir + getCamRight()
+	end
+	return dir.Magnitude > 0 and dir.Unit or dir
+end
+
+local exitSpeedyFlight = function()
+	if isFlyFlying then
+		isFlyFlying = false
+		if alignOri then alignOri.Enabled = true end
+		destroyGyro()
+		speedTrack:Stop()
+		hoverTrack:Play()
+	end
+end
+
+local updateTilt = function()
+	if not isFlying then return end
+	if isFlyFlying then
+		local flatLook = getCamLook()
+		if bGyro then
+			bGyro.CFrame = cfl(v3(), flatLook)
+		end
+	else
+		if alignOri then alignOri.Enabled = true end
+		local flatLook = getCamLook()
+		local flatRight = getCamRight()
+		local targCF
+		if moveDir.Magnitude > 0.1 and currVel.Magnitude > 1 then
+			local flatDir = v3(moveDir.X, 0, moveDir.Z).Unit
+			local look = cfl(v3(), flatLook)
+			local fwdTiltDir = flatDir:Dot(flatLook)
+			local fwdTiltAngle = -math.rad(hover_T_A) * math.clamp(fwdTiltDir, -1, 1)
+			local fwdTilt = angles(fwdTiltAngle, 0, 0)
+			local rightTiltDir = flatDir:Dot(flatRight)
+			local rightTiltAngle = -math.rad(hover_T_A) * math.clamp(rightTiltDir, -1, 1)
+			local rightTilt = angles(0, 0, rightTiltAngle)
+			targCF = look * fwdTilt * rightTilt
+		else
+			targCF = cfl(v3(), flatLook)
+		end
+		local worldAtt = alignOri.Attachment1
+		if worldAtt then
+			worldAtt.CFrame = targCF
+		end
+	end
+end
+
+local updateFlight = function(dt)
+	if not isFlying or not linVel then return end
+	moveDir = getMoveDir()
+	local hVel = v3()
+	if moveDir.Magnitude > 0 then
+		local speed = isFlyFlying and fly_S or hover_S
+		hVel = moveDir * speed
+	end
+	local vVel = v3()
+	if uis:IsKeyDown(up_K) then
+		vVel = v3(0, hover_S, 0)
+	elseif uis:IsKeyDown(down_K) then
+		vVel = v3(0, -hover_S, 0)
+	end
+	targVel = hVel + vVel
+	local accelRate = targVel.Magnitude > currVel.Magnitude and ACCEL or DECEL
+	currVel = currVel:Lerp(targVel, math.min(1, dt * accelRate))
+	linVel.VectorVelocity = currVel
+	updateTilt()
+end
+
+local onInputBegan = function(input, gp)
+	if gp then return end
+	if input.KeyCode == fly_K then
+		isFlying = not isFlying
+		if isFlying then
+			hum:ChangeState(e.HumanoidStateType.Physics)
+			linVel, alignOri = setupFlight()
+			linVel.Enabled = true
+			if alignOri then alignOri.Enabled = true end
+			currVel = v3()
+			targVel = v3()
+			isFlyFlying = false
+			speedTrack:Stop()
+			hoverTrack:Play()
+		else
+			if linVel then linVel.Enabled = false end
+			if alignOri then
+				alignOri.Enabled = false
+				if alignOri.Attachment1 then
+					alignOri.Attachment1:Destroy()
+				end
+			end
+			destroyGyro()
+			hum:ChangeState(e.HumanoidStateType.GettingUp)
+			isFlyFlying = false
+			hoverTrack:Stop()
+			speedTrack:Stop()
+		end
+	end
+	if isFlying and input.KeyCode == e.KeyCode.W then
+		local now = tick()
+		if now - lastWPress < DTAP then
+			isFlyFlying = not isFlyFlying
+			if isFlyFlying then
+				if alignOri then alignOri.Enabled = false end
+				createGyro()
+				hoverTrack:Stop()
+				speedTrack:Play()
+			else
+				if alignOri then alignOri.Enabled = true end
+				destroyGyro()
+				speedTrack:Stop()
+				hoverTrack:Play()
+			end
+		end
+		lastWPress = now
+	end
+end
+
+local onInputEnded = function(input, gp)
+	if gp then return end
+	if isFlying and input.KeyCode == e.KeyCode.W then
+		exitSpeedyFlight()
+	end
+end
+
+uis.InputBegan:Connect(onInputBegan)
+uis.InputEnded:Connect(onInputEnded)
+rus.Heartbeat:Connect(updateFlight)
+plrs.LocalPlayer.CharacterAdded:Connect(function(newChar)
+	char = newChar
+	hum = char:WaitForChild("Humanoid")
+	hrp = char:WaitForChild("HumanoidRootPart")
+	isFlying = false
+	isFlyFlying = false
+	linVel = nil
+	alignOri = nil
+	destroyGyro()
+	loadAnimations()
+end)
