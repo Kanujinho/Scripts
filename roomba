@@ -1,0 +1,247 @@
+local RS = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local examp = Instance.new("Part")
+local target = Instance.new("Part")
+local body = examp
+local ip = body.Position
+local curTCF = body.CFrame
+local v3 = Vector3.new
+local cf = CFrame.new
+local linearVelocity
+local attachment
+
+local DEBUG_GRID = false
+local debugParts = {}
+
+local speed = 5 -- speed of movement
+local go = 2.5 -- offset from ground
+local wa = 0.5 -- wobble amount
+local ba = 0.15 -- bob amount
+local heightS = 8 -- height smoothie (higher = faster)
+local rotS = 4 -- rotation smoothie  (higher = faster)
+local tRotS = 6 -- rotation smoothing for target (higher = faster)
+
+local n = 3 -- grid size
+local gs = math.max(body.Size.X, body.Size.Z) / 2 -- grid spacing
+local curH = body.Position.Y
+local t = 0
+local curX = 0
+local curZ = 0
+local rd = 35 -- ray dist
+local moveOffset = 10
+local tLookDir = v3(0, 0, -1)
+
+examp.Anchored = true
+examp.CanCollide = false
+examp.CanQuery = false
+examp.Transparency = 1
+examp.Parent = workspace
+target.Anchored = true
+target.CanCollide = false
+target.CanQuery = false
+target.Transparency = 1
+target.Parent = workspace
+
+local function rString(length)
+	local chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	local result = ""
+	for i = 1, length do
+		local randomIndex = math.random(1, #chars)
+		result = result .. string.sub(chars, randomIndex, randomIndex)
+	end
+	return result
+end
+
+local function createDP()
+	if not DEBUG_GRID then return end
+	for _, part in pairs(debugParts) do
+		if part and part.Parent then
+			part:Destroy()
+		end
+	end
+	debugParts = {}
+	for x = 1, n do
+		debugParts[x] = {}
+		for z = 1, n do
+			local debugPart = Instance.new("Part")
+			debugPart.Name = rString(8)
+			debugPart.Size = Vector3.new(0.5, 0.5, 0.5)
+			debugPart.Anchored = true
+			debugPart.CanCollide = false
+			debugPart.CanQuery = false
+			debugPart.Parent = workspace
+			debugParts[x][z] = debugPart
+		end
+	end
+end
+
+local function dVis(points)
+	if not DEBUG_GRID or not debugParts[1] then return end
+	for x = 1, n do
+		for z = 1, n do
+			if debugParts[x] and debugParts[x][z] and points[x] and points[x][z] then
+				debugParts[x][z].Position = points[x][z] + Vector3.new(0, 0.5, 0)
+			end
+		end
+	end
+end
+
+if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+	local hrp = player.Character.HumanoidRootPart
+	local playerPos = hrp.Position
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	if humanoid then
+		humanoid.PlatformStand = true
+		humanoid.AutoRotate = false
+	end
+	attachment = hrp:FindFirstChildOfClass("Attachment")
+	if not attachment then
+		attachment = Instance.new("Attachment")
+		attachment.Parent = hrp
+	end
+	linearVelocity = Instance.new("LinearVelocity")
+	linearVelocity.Attachment0 = attachment
+	linearVelocity.MaxForce = 100000
+	linearVelocity.Parent = hrp
+	examp.Position = playerPos
+	target.Position = playerPos + v3(0, 2, 0)
+	ip = examp.Position
+	curTCF = examp.CFrame
+	curH = examp.Position.Y
+	tLookDir = examp.CFrame.LookVector
+	createDP()
+end
+
+local keysPressed = { W = false, A = false, S = false, D = false }
+UIS.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if keysPressed[input.KeyCode.Name] ~= nil then
+		keysPressed[input.KeyCode.Name] = true
+	end
+	if input.KeyCode == Enum.KeyCode.G then
+		DEBUG_GRID = not DEBUG_GRID
+		if DEBUG_GRID then
+			createDP()
+		else
+			for _, row in pairs(debugParts) do
+				for _, part in pairs(row) do
+					if part and part.Parent then
+						part:Destroy()
+					end
+				end
+			end
+			debugParts = {}
+		end
+	end
+end)
+UIS.InputEnded:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if keysPressed[input.KeyCode.Name] ~= nil then keysPressed[input.KeyCode.Name] = false end
+end)
+
+local rp = RaycastParams.new()
+rp.FilterType = Enum.RaycastFilterType.Exclude
+rp.FilterDescendantsInstances = {player.Character, body, target}
+
+local function calcSurface()
+	local hts = {}
+	local totH = 0
+	local points = {}
+	for x = 1, n do
+		hts[x] = {}
+		for z = 1, n do
+			local ox = (x - 2) * gs -- offset X
+			local oz = (z - 2) * gs -- offset Z
+			local sp = body.CFrame:PointToWorldSpace(v3(ox, 5, oz))
+			local dir = v3(0, -rd, 0)
+			local res = workspace:Raycast(sp, dir, rp)
+			local hitPos = res and res.Position or v3(sp.X, body.Position.Y - go, sp.Z)
+			hts[x][z] = hitPos.Y
+			totH = totH + hitPos.Y
+			if not points[x] then points[x] = {} end
+			points[x][z] = hitPos
+		end
+	end
+	dVis(points)
+	local avgH = totH / (n * n)
+	local ftb = points[2][1] - points[2][3] -- vector from back to front point
+	local ltr = points[3][2] - points[1][2] -- vector from left to right point
+	local nrm = ltr:Cross(ftb).Unit
+	if nrm.Y < 0 then nrm = -nrm end
+	if nrm.Magnitude < 0.9 then nrm = v3(0, 1, 0) end
+	return avgH + go, nrm
+end
+
+local function getCRMV()
+	local moveVector = v3()
+	if keysPressed.W then moveVector += v3(0, 0, -1) end
+	if keysPressed.S then moveVector += v3(0, 0, 1) end
+	if keysPressed.A then moveVector += v3(-1, 0, 0) end
+	if keysPressed.D then moveVector += v3(1, 0, 0) end
+	local cameraCF = camera.CFrame
+	local moveDirection = (cameraCF:VectorToWorldSpace(moveVector) * v3(1, 0, 1))
+	if moveDirection.Magnitude > 0.1 then
+		return moveDirection.Unit
+	else
+		return v3()
+	end
+end
+
+RS.Heartbeat:Connect(function(dt)
+	t = t + dt
+	local moveDir = getCRMV()
+	if moveDir.Magnitude > 0 then
+		target.Position = ip + moveDir * moveOffset
+	else
+		target.Position = ip
+	end
+	local targetXZ = v3(target.Position.X, 0, target.Position.Z)
+	local ipXZ = v3(ip.X, 0, ip.Z)
+	local distanceToTarget = (targetXZ - ipXZ).Magnitude
+	if distanceToTarget > 0.1 then
+		local dirToTarget = (targetXZ - ipXZ).Unit
+		ip = ip + v3(dirToTarget.X, 0, dirToTarget.Z) * speed * dt
+		tLookDir = dirToTarget
+	end
+	if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = player.Character.HumanoidRootPart
+		local targetVelocity = moveDir * speed
+		linearVelocity.VectorVelocity = targetVelocity
+		local avgH, nrm = calcSurface()
+		curH = curH + (avgH - curH) * (1 - math.exp(-heightS * dt))
+		local wx = math.sin(t * 3) * wa
+		local wz = math.cos(t * 2.5) * wa * 0.5
+		local by = math.sin(t * 4) * ba
+		local finalPos = v3(ip.X + wx, curH + by, ip.Z + wz)
+		local forward = (tLookDir - nrm * tLookDir:Dot(nrm)).Unit
+		if forward.Magnitude < 0.9 then forward = body.CFrame.LookVector end
+		local up = nrm
+		local right = forward:Cross(up).Unit
+		local targetCF = CFrame.fromMatrix(finalPos, right, up)
+		curTCF = curTCF:Lerp(targetCF, 1 - math.exp(-tRotS * dt))
+		local rotWob = CFrame.Angles(
+			math.cos(t * 3) * 0.02,
+			math.sin(t * 2) * 0.05,
+			math.sin(t * 2.5) * 0.02
+		)
+		body.CFrame = curTCF * rotWob
+		local playerOffset = CFrame.new(0, -1.75, 0)
+		local playerRotation = CFrame.Angles(math.pi/2, 0, math.rad(180))
+		hrp.CFrame = body.CFrame * playerOffset * playerRotation
+	else
+		if linearVelocity then
+			linearVelocity:Destroy()
+		end
+		for _, row in pairs(debugParts) do
+			for _, part in pairs(row) do
+				if part and part.Parent then
+					part:Destroy()
+				end
+			end
+		end
+		debugParts = {}
+	end
+end)
