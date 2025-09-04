@@ -20,7 +20,13 @@ local FavIDs = {
 	595230126 --Robot Language
 	}
 
-
+writefile("GaleFighter.mp3", game:HttpGet("https://github.com/Lock1213/Soundtrack/raw/refs/heads/main/GaleFighter.mp3"))
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("ItWasUs.mp3")
+sound.Volume = 1
+sound.Looped = true
+sound.Parent = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+sound:Play()
 
 --The reality of my life isn't real but a Universe -makhail07
 wait(0.2)
