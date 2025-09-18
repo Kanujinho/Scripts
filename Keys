@@ -1,0 +1,81 @@
+while script.Name == "Keys" do wait()
+	
+end 
+Player = nil
+
+Player = game:GetService("Players"):WaitForChild(script.Name)
+
+Character = Player.Character
+
+
+
+remote=Player.Character:WaitForChild 'ServerRemote';
+
+local mouse = Player:GetMouse();
+plr=Player
+	
+	
+Player.PlayerGui:WaitForChild("Xgui")
+	Player.PlayerGui.Xgui:WaitForChild("FAT")
+		Player.PlayerGui.Xgui.FAT:WaitForChild("ViewportFrame")
+gui = Player.PlayerGui.Xgui.FAT.ViewportFrame
+	
+	gui.CurrentCamera = workspace.CurrentCamera	
+	
+	
+		coroutine.resume(coroutine.create(function()
+	game:GetService'RunService'.RenderStepped:connect(function()
+		for _,v in next, gui:GetDescendants() do if v:IsA("BasePart")  then   
+			
+			if v.val.Value ~= nil then
+		v.CFrame = 	v.val.Value.CFrame*CFrame.new(math.random(-1000,1000)/500,math.random(-1000,1000)/500,math.random(-1000,1000)/500)
+			end
+			
+			
+			  end  end
+	end)
+	end))
+	
+	
+coroutine.resume(coroutine.create(function()
+	
+	while true do wait()
+		coroutine.resume(coroutine.create(function()
+	if Character ~= nil and Character:FindFirstChild("Torso") and Character.Torso:FindFirstChildOfClass("Sound") then
+	remote:InvokeServer (6, Character.Torso.BGMusic.PlaybackLoudness)
+	--print( Character.Torso.BGMusic.PlaybackLoudness)
+	 end
+	end))
+	
+	end 
+	
+	
+	end))
+	
+
+local mouse = Player:GetMouse();
+mouse.Move:connect(function()
+	remote:InvokeServer (4, mouse.Target);
+	 remote:InvokeServer (5, mouse.hit);
+end)
+
+
+mouse.Button1Down:connect(function()
+	
+	remote:InvokeServer (3, "Down");	
+end)
+mouse.Button1Up:connect(function()
+	
+	remote:InvokeServer (3, "Up");	
+end)
+mouse.KeyDown:connect(function(k)
+	k = k:lower()
+	
+	remote:InvokeServer (1, k);
+end)
+
+mouse.KeyUp:connect(function(k)
+	k = k:lower()
+	
+	remote:InvokeServer (2, k);
+end)
