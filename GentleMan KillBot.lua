@@ -1,5 +1,11 @@
 ﻿-- Script By: 123jl123
 -- Converted By: Kanujinho
+-- Update 04/10/2025: 
+-- + ADDED THE ORIGINAL MUSIC (also i will added the other music in the second form soon)
+-- * FIX THE SCRIPT!
+-- * if you press "T" and the character freezes, click to punch and unfreeze the character
+
+-- Enjoy!
 
 script = game:GetObjects("rbxassetid://5430831931")[1].GKB
 
@@ -8,6 +14,14 @@ FELOADLIBRARY = {}
 loadstring(game:GetObjects("rbxassetid://5209815302")[1].Source)()
 local RbxUtility = FELOADLIBRARY
 local Create = RbxUtility.Create
+
+writefile("M3chanicalC0nD4mnation.mp3", game:HttpGet("https://github.com/Lock1213/Scripts/raw/refs/heads/main/M3chanicalC0nD4mnation.mp3"))
+local sound = Instance.new("Sound")
+sound.SoundId = getcustomasset("M3chanicalC0nD4mnation.mp3")
+sound.Volume = 1
+sound.Looped = true
+sound.Parent = game.Players.LocalPlayer.Character:WaitForChild("HumanoidRootPart")
+sound:Play()
 
 local Player = game.Players.LocalPlayer
 
